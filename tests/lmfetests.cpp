@@ -2,8 +2,11 @@
 #include <catch2/catch.hpp>
 #include <lmfe/lmfe.hpp>
 
-TEST_CASE( "Quick check", "[main]" ) {
-    auto added = add_numbers(1, 3);
-
-    REQUIRE( added == 4 );
+TEST_CASE( "Basic String Parser Check", "[main]" ) {
+    auto parser = CharacterLevelParserPtr(new StringParser("abc"));
+    REQUIRE( parser->get_allowed_characters() == "a" );
+    parser = parser->add_character('a');
+    REQUIRE( parser->get_allowed_characters() == "b" );
+    parser = parser->add_character('b');
+    REQUIRE( parser->get_allowed_characters() == "c" );
 }
