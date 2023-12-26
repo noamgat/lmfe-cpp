@@ -7,7 +7,7 @@ FetchContent_MakeAvailable(catch)
 # Adds Catch2::Catch2
 
 # Tests need to be added as executables first
-add_executable(testlmfe lmfetests.cpp)
+add_executable(testlmfe lmfetests.cpp jsonschemaparsertests.cpp)
 
 # I'm using C++17 in the test
 target_compile_features(testlmfe PRIVATE cxx_std_17)

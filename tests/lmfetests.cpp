@@ -10,3 +10,14 @@ TEST_CASE( "Basic String Parser Check", "[main]" ) {
     parser = parser->add_character('b');
     REQUIRE( parser->get_allowed_characters() == "c" );
 }
+
+
+
+TEST_CASE( "Basic String Parser Check2", "[main]" ) {
+    auto parser = CharacterLevelParserPtr(new StringParser("abc"));
+    REQUIRE( parser->get_allowed_characters() == "a" );
+    parser = parser->add_character('a');
+    REQUIRE( parser->get_allowed_characters() == "b" );
+    parser = parser->add_character('b');
+    REQUIRE( parser->get_allowed_characters() == "c" );
+}
