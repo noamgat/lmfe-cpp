@@ -16,13 +16,13 @@ extern CharacterLevelParserPtr get_parser(JsonSchemaParser* parser, const valijs
 class JsonSchemaParser : public CharacterLevelParser
 {
 public:
-    JsonSchemaParser(const std::string& schema_string) {
+    JsonSchemaParser(const std::string& schema_string, CharacterLevelParserConfig* config) : config(config) {
         context = std::make_shared<_Context>();
         json schema_json = json::parse(schema_string);
         valijson::adapters::NlohmannJsonAdapter schema_adapter(schema_json);
         valijson::SchemaParser parser;
         parser.populateSchema(schema_adapter, context->model_class);
-         context->active_parser = this;
+        context->active_parser = this;
         context->alphabet_without_quotes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         num_consecutive_whitespaces = 0;
         last_parsed_string = "";
@@ -30,29 +30,37 @@ public:
         object_stack.push_back(get_parser(this, &context->model_class));
     }
 
-    virtual CharacterLevelParserPtr add_character(char new_character) {
-        return CharacterLevelParserPtr(this);
+    ~JsonSchemaParser() 
+    {
+        std::cout << "JsonSchemaParser destructor called" << std::endl;
     }
-    
-    virtual std::string get_allowed_characters() const {
-        return "";
-    }
-    virtual bool can_end() const {
-        return true;
-    }
+    CharacterLevelParserPtr add_character(char new_character);
 
-protected:
+    std::string get_allowed_characters() const;
+
+    virtual bool can_end() const;
+
+
+public:
     struct _Context {
         Schema model_class;
         JsonSchemaParser* active_parser;
         std::string alphabet_without_quotes;
     };
+    typedef std::shared_ptr<_Context> ContextPtr;
 
     std::vector<CharacterLevelParserPtr> object_stack;
-    std::shared_ptr<_Context> context;
+    ContextPtr context;
+    CharacterLevelParserConfig* config;
     int num_consecutive_whitespaces;
     std::string last_parsed_string;
     std::string last_non_whitespace_character;
+
+protected:
+     JsonSchemaParser(ContextPtr context, CharacterLevelParserConfig* config, const std::vector<CharacterLevelParserPtr>& updated_stack, int num_consecutive_whitespaces) 
+     : context(context), config(config), object_stack(updated_stack), num_consecutive_whitespaces(num_consecutive_whitespaces) {
+
+     }
 };
 
 

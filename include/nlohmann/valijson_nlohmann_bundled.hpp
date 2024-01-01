@@ -4273,7 +4273,7 @@ public:
         }
     }
 
-private:
+public:  // LMFE-CPP - Changed private to public to make schema introspection possible
     typedef adapters::FrozenValue EnumValue;
 
     typedef std::vector<const EnumValue *, internal::CustomAllocator<const EnumValue *>> EnumValues;
@@ -4889,7 +4889,7 @@ public:
         m_additionalProperties = subschema;
     }
 
-private:
+public:  //LMFE-CPP - Made public for introspection
     typedef std::map<
             String,
             const Subschema *,
@@ -4962,7 +4962,7 @@ public:
         }
     }
 
-private:
+public: // LMFE-CPP Made public to allow introspection
     typedef std::set<String, std::less<String>,
             internal::CustomAllocator<String>> RequiredProperties;
 
@@ -7536,7 +7536,7 @@ public:
 
     bool equalTo(const Adapter &other, bool strict) const override;
 
-private:
+public: // LMFE-CPP change : making public for introspection
     std::string value;
 };
 

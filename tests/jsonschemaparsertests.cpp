@@ -7,7 +7,7 @@ const std::string SAMPLE_SCHEMA = R"({"$defs": {"InnerModel": {"properties": {"l
 
 TEST_CASE("Minimal test", "[json]")
 {
-    auto parser = CharacterLevelParserPtr(new JsonSchemaParser(SAMPLE_SCHEMA));
-    assert_parser_with_string("{}", parser, false);
+    auto parser = std::make_shared<JsonSchemaParser>(SAMPLE_SCHEMA, nullptr);
     assert_parser_with_string(R"({"num":1})", parser, true);
+    assert_parser_with_string("{}", parser, false);
 }

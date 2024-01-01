@@ -4,13 +4,18 @@
 #include <unordered_set>
 #include <stdexcept>
 #include <memory>
+#include <iostream>
 
 class CharacterLevelParser;
 typedef std::shared_ptr<CharacterLevelParser> CharacterLevelParserPtr;
 
-class CharacterLevelParser {
+
+class CharacterLevelParser : public std::enable_shared_from_this<CharacterLevelParser> {
 public:
-    virtual ~CharacterLevelParser() {}
+    virtual ~CharacterLevelParser() 
+    {
+        std::cout << "CharacterLevelParser::~CharacterLevelParser()" << std::endl;
+    }
 
     virtual CharacterLevelParserPtr add_character(char new_character) = 0;
     virtual std::string get_allowed_characters() const = 0;
@@ -30,7 +35,7 @@ public:
 
     CharacterLevelParserPtr add_character(char new_character) override {
         if (target_str.find(new_character) == 0) {
-            return CharacterLevelParserPtr(new StringParser(target_str.substr(1)));
+            return std::make_shared<StringParser>(target_str.substr(1));
         } else {
             throw std::invalid_argument("Expected '" + target_str.substr(0, 1) + "' but got '" + new_character + "'");
         }
