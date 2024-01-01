@@ -117,7 +117,7 @@ public:
                 newStringState->parsed_string = "";
             } else {
                 newStringState->seen_closing_quote = true;
-                newStringState->parsed_string = parsed_string.substr(0, parsed_string.size() - 1);
+                newStringState->parsed_string = newStringState->parsed_string.substr(0, newStringState->parsed_string.size() - 1);
             }
         }
         if (new_character == '\\') {
@@ -474,12 +474,18 @@ CharacterLevelParserPtr get_parser(JsonSchemaParser *parser, const valijson::Sub
 CharacterLevelParserPtr JsonSchemaParser::add_character(char new_character) {
     int receiving_idx = object_stack.size() - 1;
     std::string last_parsed_string = this->last_parsed_string;
-    while (std::find(object_stack[receiving_idx]->get_allowed_characters().begin(), object_stack[receiving_idx]->get_allowed_characters().end(), new_character) == object_stack[receiving_idx]->get_allowed_characters().end()) {
-        CharacterLevelParserPtr finished_receiver = object_stack[receiving_idx];
-        if (StringParsingState* string_parser = dynamic_cast<StringParsingState*>(finished_receiver.get())) {
-            last_parsed_string = string_parser->parsed_string;
+    bool found_receiving_idx = false;
+    while (!found_receiving_idx) {
+        if (object_stack[receiving_idx]->get_allowed_characters().find(new_character) != std::string::npos) {
+            found_receiving_idx = true;
         }
-        receiving_idx--;
+        else {
+            CharacterLevelParserPtr finished_receiver = object_stack[receiving_idx];
+            if (StringParsingState* string_parser = dynamic_cast<StringParsingState*>(finished_receiver.get())) {
+                last_parsed_string = string_parser->parsed_string;
+            }
+            receiving_idx--;
+        }
     }
 
     std::vector<CharacterLevelParserPtr> updated_stack(object_stack.begin(), object_stack.begin() + receiving_idx + 1);
