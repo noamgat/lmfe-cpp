@@ -5,10 +5,14 @@ using namespace valijson;
 
 typedef const Subschema* JsonSchemaPtr;
 
-JsonSchemaPtr ANY_JSON_OBJECT_SCHEMA = nullptr;
+JsonSchemaPtr get_any_json_object_schema();
 const std::string WHITESPACE_CHARACTERS = " \t\n\r\f\v";
 const std::string COMPLETE_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+-=[]{};:,./<>? `'\"";
 const int MAX_CONSECUTIVE_WHITESPACES = 12;
+
+std::string _ANY_JSON_SCHEMA_STRING = R"(
+    {"anyOf": [{"type": "integer"}, {"type": "number"}, {"type": "string"}, {"type": "boolean"}, {"type": "object"}, {"type": "null"}, {"type": "array"}]}
+)";
 
 template <class T>
 const T *findConstraint(JsonSchemaPtr schema)
@@ -264,7 +268,8 @@ public:
         schema_object(schema_object),
         current_stage(ObjectParsingStage::START_OBJECT) {
         const PropertiesConstraint* propertiesConstraint = findConstraint<PropertiesConstraint>(schema_object);
-        is_dictionary = (propertiesConstraint->m_properties.size() + propertiesConstraint->m_patternProperties.size()) == 0;
+        is_dictionary = (propertiesConstraint == nullptr) 
+            || (propertiesConstraint->m_properties.size() + propertiesConstraint->m_patternProperties.size()) == 0;
     }
 
     ObjectParsingState* clone() {
@@ -321,10 +326,10 @@ public:
                 if (is_dictionary) {
                     JsonSchemaPtr value_schema;
                     
-                    if (propertiesConstraint->m_additionalProperties) {
+                    if (propertiesConstraint && propertiesConstraint->m_additionalProperties) {
                         value_schema = propertiesConstraint->m_additionalProperties;
                     } else {
-                        value_schema = ANY_JSON_OBJECT_SCHEMA;
+                        value_schema = get_any_json_object_schema();
                     }
                     CharacterLevelParserPtr current_key_parser = get_parser(root, value_schema);
                     root->context->active_parser->object_stack.push_back(current_key_parser);
@@ -525,10 +530,15 @@ std::vector<std::string> getEnumValues(const EnumConstraint* enumConstraint)
 {
     std::vector<std::string> enumValues;
     for (auto value : enumConstraint->m_enumValues) {
-        if (const valijson::adapters::StdStringFrozenValue* stringValue = dynamic_cast<const valijson::adapters::StdStringFrozenValue*>(value)) {
+        if (const valijson::adapters::NlohmannJsonFrozenValue* jsonValue = dynamic_cast<const valijson::adapters::NlohmannJsonFrozenValue*>(value)) {
+            if (jsonValue->m_value.is_string()) {
+                enumValues.push_back(jsonValue->m_value.get<std::string>());    
+            } else {
+                enumValues.push_back(jsonValue->m_value.dump());
+            }
+            
+        } else if (const valijson::adapters::StdStringFrozenValue* stringValue = dynamic_cast<const valijson::adapters::StdStringFrozenValue*>(value)) {
             enumValues.push_back(stringValue->value);
-        } else if (const valijson::adapters::NlohmannJsonFrozenValue* jsonValue = dynamic_cast<const valijson::adapters::NlohmannJsonFrozenValue*>(value)) {
-            enumValues.push_back(jsonValue->m_value.dump());
         } else {
             throw std::runtime_error("JsonSchemaParser: Unknown enum value type");
         }
@@ -538,17 +548,17 @@ std::vector<std::string> getEnumValues(const EnumConstraint* enumConstraint)
 
 CharacterLevelParserPtr get_parser(JsonSchemaParser *parser, const valijson::Subschema *schema)
 {
+    if (!schema)
+    {
+        schema = get_any_json_object_schema();
+    }
+
     const AnyOfConstraint* anyOfConstraint = findConstraint<AnyOfConstraint>(schema);
     const TypeConstraint* typeConstraint = findConstraint<TypeConstraint>(schema);
     const EnumConstraint* enumConstraint = findConstraint<EnumConstraint>(schema);
     const PropertiesConstraint* propertiesConstraint = findConstraint<PropertiesConstraint>(schema);
     const PropertyNamesConstraint* propertyNamesConstraint = findConstraint<PropertyNamesConstraint>(schema);
     const RequiredConstraint* requiredConstraint = findConstraint<RequiredConstraint>(schema);
-
-    if (!schema)
-    {
-        throw std::runtime_error("JsonSchemaParser: Value schema is None");
-    }
 
     if (anyOfConstraint) {
         std::vector<CharacterLevelParserPtr> parsers;
@@ -586,7 +596,7 @@ CharacterLevelParserPtr get_parser(JsonSchemaParser *parser, const valijson::Sub
                 case TypeConstraint::kArray:
                 {
                     const SingularItemsConstraint* singularItemsConstraint = findConstraint<SingularItemsConstraint>(schema);
-                    JsonSchemaPtr list_member_type = (singularItemsConstraint != nullptr) ? singularItemsConstraint->getItemsSubschema() : ANY_JSON_OBJECT_SCHEMA;
+                    JsonSchemaPtr list_member_type = (singularItemsConstraint != nullptr) ? singularItemsConstraint->getItemsSubschema() : get_any_json_object_schema();
                     return CharacterLevelParserPtr(new ListParsingState(parser, list_member_type));
                 }
                 default:
@@ -597,10 +607,23 @@ CharacterLevelParserPtr get_parser(JsonSchemaParser *parser, const valijson::Sub
         }
     }
 
-    return 0;
+    return get_parser(parser, get_any_json_object_schema());
 }
 
 
+JsonSchemaParser::JsonSchemaParser(const std::string& schema_string, CharacterLevelParserConfig* config) : config(config) {
+    context = std::make_shared<_Context>();
+    json schema_json = json::parse(schema_string.empty() ? _ANY_JSON_SCHEMA_STRING : schema_string);
+    valijson::adapters::NlohmannJsonAdapter schema_adapter(schema_json);
+    valijson::SchemaParser parser;
+    parser.populateSchema(schema_adapter, context->model_class);
+    context->active_parser = this;
+    context->alphabet_without_quotes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    num_consecutive_whitespaces = 0;
+    last_parsed_string = "";
+    last_non_whitespace_character = "";
+    object_stack.push_back(get_parser(this, &context->model_class));
+}
 
 CharacterLevelParserPtr JsonSchemaParser::add_character(char new_character) {
     int receiving_idx = object_stack.size() - 1;
@@ -670,4 +693,19 @@ bool JsonSchemaParser::can_end() const
         }
     }
     return true;
+}
+
+JsonSchemaPtr _ANY_JSON_OBJECT_SCHEMA;
+
+JsonSchemaPtr get_any_json_object_schema()
+{
+    if (_ANY_JSON_OBJECT_SCHEMA == nullptr) {
+        json schema_json = json::parse(_ANY_JSON_SCHEMA_STRING);
+        valijson::adapters::NlohmannJsonAdapter schema_adapter(schema_json);
+        valijson::SchemaParser parser;
+        valijson::Schema* schema = new valijson::Schema();
+        parser.populateSchema(schema_adapter, *schema);
+        _ANY_JSON_OBJECT_SCHEMA = schema;
+    }
+    return _ANY_JSON_OBJECT_SCHEMA;
 }

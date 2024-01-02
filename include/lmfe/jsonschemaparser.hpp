@@ -16,19 +16,7 @@ extern CharacterLevelParserPtr get_parser(JsonSchemaParser* parser, const valijs
 class JsonSchemaParser : public CharacterLevelParser
 {
 public:
-    JsonSchemaParser(const std::string& schema_string, CharacterLevelParserConfig* config) : config(config) {
-        context = std::make_shared<_Context>();
-        json schema_json = json::parse(schema_string);
-        valijson::adapters::NlohmannJsonAdapter schema_adapter(schema_json);
-        valijson::SchemaParser parser;
-        parser.populateSchema(schema_adapter, context->model_class);
-        context->active_parser = this;
-        context->alphabet_without_quotes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        num_consecutive_whitespaces = 0;
-        last_parsed_string = "";
-        last_non_whitespace_character = "";
-        object_stack.push_back(get_parser(this, &context->model_class));
-    }
+    JsonSchemaParser(const std::string &schema_string, CharacterLevelParserConfig *config);
 
     ~JsonSchemaParser() 
     {

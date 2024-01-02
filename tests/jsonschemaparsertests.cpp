@@ -282,12 +282,8 @@ TEST_CASE("test_any_json_object", "[json]")
     test_json_schema_parsing_with_string(R"(
         {"a": 1, "b": 2.2, "c": "c", "d": [1,2,3, null], "e": {"ee": 2}}
     )", any_schema, true);
-    test_json_schema_parsing_with_string(R"(
-        true
-    )", any_schema, true);
-    test_json_schema_parsing_with_string(R"(
-        "str"
-    )", any_schema, true);
+    test_json_schema_parsing_with_string(R"(true)", any_schema, true);
+    test_json_schema_parsing_with_string(R"("str")", any_schema, true);
 }
 
 /*
