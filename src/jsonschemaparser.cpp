@@ -521,6 +521,21 @@ public:
     }
 };
 
+std::vector<std::string> getEnumValues(const EnumConstraint* enumConstraint)
+{
+    std::vector<std::string> enumValues;
+    for (auto value : enumConstraint->m_enumValues) {
+        if (const valijson::adapters::StdStringFrozenValue* stringValue = dynamic_cast<const valijson::adapters::StdStringFrozenValue*>(value)) {
+            enumValues.push_back(stringValue->value);
+        } else if (const valijson::adapters::NlohmannJsonFrozenValue* jsonValue = dynamic_cast<const valijson::adapters::NlohmannJsonFrozenValue*>(value)) {
+            enumValues.push_back(jsonValue->m_value.dump());
+        } else {
+            throw std::runtime_error("JsonSchemaParser: Unknown enum value type");
+        }
+    }
+    return enumValues;
+}
+
 CharacterLevelParserPtr get_parser(JsonSchemaParser *parser, const valijson::Subschema *schema)
 {
     const AnyOfConstraint* anyOfConstraint = findConstraint<AnyOfConstraint>(schema);
@@ -550,15 +565,14 @@ CharacterLevelParserPtr get_parser(JsonSchemaParser *parser, const valijson::Sub
         }
         if (typeConstraint->m_namedTypes.size() == 1) {
             auto type = *typeConstraint->m_namedTypes.begin();
+            if (enumConstraint) {
+                bool needsQuotes = type == TypeConstraint::kString;
+                std::vector<std::string> enumValues = getEnumValues(enumConstraint);
+                return CharacterLevelParserPtr(new StringParsingState(parser, enumValues, needsQuotes, needsQuotes));
+            }
             switch (type) {
                 case TypeConstraint::kString:
-                    if (enumConstraint) {
-                        std::vector<std::string> enumValues;
-                        // TODO: Extract from m_enumValues
-                        return CharacterLevelParserPtr(new StringParsingState(parser, enumValues, false, false));
-                    } else {
-                        return CharacterLevelParserPtr(new StringParsingState(parser, {}, false, false));
-                    }
+                    return CharacterLevelParserPtr(new StringParsingState(parser, {}, true, true));
                 case TypeConstraint::kInteger:
                     return CharacterLevelParserPtr(new NumberParsingState(parser, false));
                 case TypeConstraint::kNumber:

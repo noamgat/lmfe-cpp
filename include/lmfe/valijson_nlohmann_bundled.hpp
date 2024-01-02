@@ -10459,7 +10459,7 @@ public:
 
     bool equalTo(const Adapter &other, bool strict) const override;
 
-private:
+public: // LMFE-CPP Made public for introspection
 
     /// Stored NlohmannJson value
     nlohmann::json m_value;
