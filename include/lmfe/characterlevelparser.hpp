@@ -80,7 +80,7 @@ public:
             }
         }
         if (relevant_parsers.size() == 1) {
-            return CharacterLevelParserPtr(relevant_parsers[0]);
+            return relevant_parsers[0];
         }
         return CharacterLevelParserPtr(new UnionParser(relevant_parsers));
     }

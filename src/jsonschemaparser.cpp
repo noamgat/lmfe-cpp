@@ -462,7 +462,7 @@ public:
         if (new_character == '[') {
             self->seen_list_opener = true;
             CharacterLevelParserPtr item_parser = get_parser(this->root, this->list_member_type);
-            bool requires_items = this->min_items != 0 && this->min_items > 0;
+            bool requires_items = this->min_items != -1 && this->min_items > 0;
             CharacterLevelParserPtr parser_to_push;
             if (requires_items) {
                 parser_to_push = item_parser;
@@ -582,7 +582,13 @@ CharacterLevelParserPtr get_parser(JsonSchemaParser *parser, const valijson::Sub
             }
             switch (type) {
                 case TypeConstraint::kString:
-                    return CharacterLevelParserPtr(new StringParsingState(parser, {}, true, true));
+                {
+                    const MinLengthConstraint* minLengthConstraint = findConstraint<MinLengthConstraint>(schema);
+                    const MaxLengthConstraint* maxLengthConstraint = findConstraint<MaxLengthConstraint>(schema);
+                    size_t min_length = minLengthConstraint ? minLengthConstraint->getMinLength() : -1;
+                    size_t max_length = maxLengthConstraint ? maxLengthConstraint->getMaxLength() : -1;
+                    return CharacterLevelParserPtr(new StringParsingState(parser, {}, true, true, min_length, max_length));
+                }
                 case TypeConstraint::kInteger:
                     return CharacterLevelParserPtr(new NumberParsingState(parser, false));
                 case TypeConstraint::kNumber:
@@ -596,8 +602,12 @@ CharacterLevelParserPtr get_parser(JsonSchemaParser *parser, const valijson::Sub
                 case TypeConstraint::kArray:
                 {
                     const SingularItemsConstraint* singularItemsConstraint = findConstraint<SingularItemsConstraint>(schema);
+                    const MinItemsConstraint* minItemsConstraint = findConstraint<MinItemsConstraint>(schema);
+                    const MaxItemsConstraint* maxItemsConstraint = findConstraint<MaxItemsConstraint>(schema);
                     JsonSchemaPtr list_member_type = (singularItemsConstraint != nullptr) ? singularItemsConstraint->getItemsSubschema() : get_any_json_object_schema();
-                    return CharacterLevelParserPtr(new ListParsingState(parser, list_member_type));
+                    size_t minItems = minItemsConstraint ? minItemsConstraint->getMinItems() : -1;
+                    size_t maxItems = maxItemsConstraint ? maxItemsConstraint->getMaxItems() : -1;
+                    return CharacterLevelParserPtr(new ListParsingState(parser, list_member_type, minItems, maxItems));
                 }
                 default:
                     throw std::runtime_error("JsonSchemaParser: Unknown type constraint");
@@ -618,7 +628,12 @@ JsonSchemaParser::JsonSchemaParser(const std::string& schema_string, CharacterLe
     valijson::SchemaParser parser;
     parser.populateSchema(schema_adapter, context->model_class);
     context->active_parser = this;
-    context->alphabet_without_quotes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    context->alphabet_without_quotes = COMPLETE_ALPHABET;
+    //https://stackoverflow.com/a/20326454/1075114
+    context->alphabet_without_quotes.erase(
+        std::remove(context->alphabet_without_quotes.begin(), context->alphabet_without_quotes.end(), '"'),
+        context->alphabet_without_quotes.end());
+
     num_consecutive_whitespaces = 0;
     last_parsed_string = "";
     last_non_whitespace_character = "";

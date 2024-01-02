@@ -263,7 +263,7 @@ TEST_CASE("test_string_length_limitation", "[json]")
     )";
 
     std::string str_base = R"(
-        {{"key": "HERE"}}
+        {"key": "HERE"}
     )";
     for (int str_length = 0; str_length < 10; ++str_length) {
         std::string str = str_base;
