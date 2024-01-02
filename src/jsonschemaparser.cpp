@@ -409,6 +409,116 @@ public:
     bool can_end() const { return current_stage == ObjectParsingStage::END_OBJECT; }
 };
 
+class ListParsingState : public PrimitiveParsingState {
+private:
+    JsonSchemaPtr list_member_type;
+    bool seen_list_opener;
+    bool seen_list_closer;
+    size_t num_items_seen;
+    size_t min_items;
+    size_t max_items;
+
+public:
+    ListParsingState(
+        JsonSchemaParser* root,
+        JsonSchemaPtr list_member_type,
+        size_t min_items = -1,
+        size_t max_items = -1
+    ) : 
+        PrimitiveParsingState(root), 
+        list_member_type(list_member_type), 
+        min_items(min_items), 
+        max_items(max_items), 
+        num_items_seen(0), 
+        seen_list_opener(false), 
+        seen_list_closer(false) {
+        
+    }
+
+    ListParsingState* clone() const {
+        ListParsingState* new_state = new ListParsingState(
+            this->root,
+            this->list_member_type,
+            this->min_items,
+            this->max_items
+        );
+        new_state->parsed_string = this->parsed_string;
+        new_state->num_items_seen = this->num_items_seen;
+        new_state->seen_list_opener = this->seen_list_opener;
+        new_state->seen_list_closer = this->seen_list_closer;
+        return new_state;
+    }
+
+    CharacterLevelParserPtr add_character(char new_character) override {
+        CharacterLevelParserPtr base_state = PrimitiveParsingState::add_character(new_character);
+        ListParsingState* self = static_cast<ListParsingState*>(base_state.get());
+        if (new_character == '[') {
+            self->seen_list_opener = true;
+            CharacterLevelParserPtr item_parser = get_parser(this->root, this->list_member_type);
+            bool requires_items = this->min_items != 0 && this->min_items > 0;
+            CharacterLevelParserPtr parser_to_push;
+            if (requires_items) {
+                parser_to_push = item_parser;
+            } else {
+                // If we don't require items, we can also end immediately, the Union + ForceStopParser combination achieves this
+                std::vector<CharacterLevelParserPtr> parsers;
+                parsers.push_back(item_parser);
+                parsers.push_back(CharacterLevelParserPtr(new ForceStopParser()));
+                parser_to_push = CharacterLevelParserPtr(new UnionParser(parsers));
+            }
+            this->root->context->active_parser->object_stack.push_back(parser_to_push);
+        } else if (new_character == ']') {
+            self->seen_list_closer = true;
+        } else if (new_character == ',') {
+            if (!self->seen_list_closer) {
+                self->num_items_seen += 1;
+                this->root->context->active_parser->object_stack.push_back(
+                    get_parser(
+                        this->root,
+                        this->list_member_type
+                    )
+                );
+            }
+        }
+        return base_state;
+    }
+
+    std::string get_allowed_characters() const override {
+        if (!this->seen_list_opener) {
+            return "[" + WHITESPACE_CHARACTERS;
+        } else if (!this->seen_list_closer) {
+            return this->get_allowed_control_characters() + WHITESPACE_CHARACTERS;
+        } else {
+            return "";
+        }
+    }
+
+    bool can_end() const override {
+        return this->seen_list_closer;
+    }
+
+    std::string get_allowed_control_characters() const {
+        int num_items = this->num_items_seen;
+        bool is_on_top = this->root->context->active_parser->object_stack.back().get() == this;
+        if ((!is_on_top) && this->root->last_non_whitespace_character != "[") {
+            // If there is an active parser above us, and the last character is not [, 
+            // there is an active item parser on the stack that we did not count yet.
+            num_items += 1;
+        }
+        std::string control_characters = "";
+        bool has_enough_items = this->min_items == -1 || num_items >= this->min_items;
+        bool can_add_another_item = this->max_items == -1 || num_items < this->max_items;
+
+        if (can_add_another_item) {
+            control_characters += ",";
+        }
+        if (has_enough_items) {
+            control_characters += "]";
+        }
+        return control_characters;
+    }
+};
+
 CharacterLevelParserPtr get_parser(JsonSchemaParser *parser, const valijson::Subschema *schema)
 {
     const AnyOfConstraint* anyOfConstraint = findConstraint<AnyOfConstraint>(schema);
@@ -418,7 +528,8 @@ CharacterLevelParserPtr get_parser(JsonSchemaParser *parser, const valijson::Sub
     const PropertyNamesConstraint* propertyNamesConstraint = findConstraint<PropertyNamesConstraint>(schema);
     const RequiredConstraint* requiredConstraint = findConstraint<RequiredConstraint>(schema);
 
-    if (!schema) {
+    if (!schema)
+    {
         throw std::runtime_error("JsonSchemaParser: Value schema is None");
     }
 
@@ -457,7 +568,11 @@ CharacterLevelParserPtr get_parser(JsonSchemaParser *parser, const valijson::Sub
                 case TypeConstraint::kObject:
                     return CharacterLevelParserPtr(new ObjectParsingState(schema, parser));
                 case TypeConstraint::kArray:
-                    return 0;
+                {
+                    const SingularItemsConstraint* singularItemsConstraint = findConstraint<SingularItemsConstraint>(schema);
+                    JsonSchemaPtr list_member_type = (singularItemsConstraint != nullptr) ? singularItemsConstraint->getItemsSubschema() : ANY_JSON_OBJECT_SCHEMA;
+                    return CharacterLevelParserPtr(new ListParsingState(parser, list_member_type));
+                }
                 default:
                     throw std::runtime_error("JsonSchemaParser: Unknown type constraint");
                 }
