@@ -10059,7 +10059,7 @@ private:
 #pragma once
 
 #include <string>
-#include "./json.hpp"
+#include "./nlohmann_json.hpp"
 
 #include <utility>
 
@@ -10755,7 +10755,7 @@ NlohmannJsonObject::find(
 
 #include <iostream>
 
-#include <nlohmann/json.hpp>
+#include "./nlohmann_json.hpp"
 
 namespace valijson {
 namespace utils {

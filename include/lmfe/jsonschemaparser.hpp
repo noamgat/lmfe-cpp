@@ -2,8 +2,8 @@
 #include <vector>
 #include <string>
 #include "./characterlevelparser.hpp"
-#include "../nlohmann/json.hpp"
-#include "../nlohmann/valijson_nlohmann_bundled.hpp"
+#include "./nlohmann_json.hpp"
+#include "./valijson_nlohmann_bundled.hpp"
 
 #include <memory>
 
@@ -32,7 +32,7 @@ public:
 
     ~JsonSchemaParser() 
     {
-        std::cout << "JsonSchemaParser destructor called" << std::endl;
+        // std::cout << "JsonSchemaParser destructor called" << std::endl;
     }
     CharacterLevelParserPtr add_character(char new_character);
 

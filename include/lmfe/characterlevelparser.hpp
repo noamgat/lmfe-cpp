@@ -14,7 +14,7 @@ class CharacterLevelParser : public std::enable_shared_from_this<CharacterLevelP
 public:
     virtual ~CharacterLevelParser() 
     {
-        std::cout << "CharacterLevelParser::~CharacterLevelParser()" << std::endl;
+        // std::cout << "CharacterLevelParser::~CharacterLevelParser()" << std::endl;
     }
 
     virtual CharacterLevelParserPtr add_character(char new_character) = 0;
