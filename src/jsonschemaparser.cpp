@@ -18,7 +18,7 @@ const T *findConstraint(JsonSchemaPtr schema)
             return dynamic_cast<const T*>(schema->m_constraints[i].get());
         }
     }
-    return 0;
+    return nullptr;
 }
 
 class BaseParsingState : public CharacterLevelParser
@@ -202,7 +202,7 @@ public:
           seen_decimal_point(false),
           seen_whitespace_after_digits(false) {}
 
-    NumberParsingState* clone() const {
+    NumberParsingState* clone() const override {
         NumberParsingState* clone = new NumberParsingState(root, allow_floating_point);
         clone->parsed_string = parsed_string;
         clone->seen_decimal_point = seen_decimal_point;
@@ -210,7 +210,7 @@ public:
         return clone;
     }
 
-    CharacterLevelParserPtr add_character(char new_character) {
+    CharacterLevelParserPtr add_character(char new_character) override {
         if (parsed_string.empty() && WHITESPACE_CHARACTERS.find(new_character) != std::string::npos) {
             return shared_from_this();
         }
@@ -228,7 +228,7 @@ public:
         return newState;
     }
 
-    std::string get_allowed_characters() const {
+    std::string get_allowed_characters() const override {
         if (seen_whitespace_after_digits) {
             return WHITESPACE_CHARACTERS;
         }
@@ -245,7 +245,7 @@ public:
         return allowed_characters;
     }
 
-    bool can_end() {
+    bool can_end() const override {
         return !parsed_string.empty() && (isdigit(parsed_string.back()) || seen_whitespace_after_digits);
     }
 };
@@ -263,7 +263,8 @@ public:
         BaseParsingState(root),
         schema_object(schema_object),
         current_stage(ObjectParsingStage::START_OBJECT) {
-        is_dictionary = findConstraint<PropertiesConstraint>(schema_object) == nullptr;
+        const PropertiesConstraint* propertiesConstraint = findConstraint<PropertiesConstraint>(schema_object);
+        is_dictionary = (propertiesConstraint->m_properties.size() + propertiesConstraint->m_patternProperties.size()) == 0;
     }
 
     ObjectParsingState* clone() {
@@ -289,7 +290,7 @@ public:
         return possible_keys;
     }
 
-    virtual CharacterLevelParserPtr add_character(char new_character) { 
+    virtual CharacterLevelParserPtr add_character(char new_character) override { 
         if (new_character == ' ') {
             return shared_from_this();
         }
@@ -316,6 +317,7 @@ public:
                 newState->current_stage = ObjectParsingStage::PARSING_VALUE;
                 newState->current_key = root->context->active_parser->last_parsed_string;
                 newState->existing_keys.push_back(newState->current_key);
+                std::sort(newState->existing_keys.begin(), newState->existing_keys.end()); // Sorted for std::includes
                 if (is_dictionary) {
                     JsonSchemaPtr value_schema;
                     
@@ -354,11 +356,11 @@ public:
         return CharacterLevelParserPtr(newState);
     }
 
-    std::string get_allowed_characters() const { 
+    std::string get_allowed_characters() const override { 
         std::vector<char> possible_characters;
 
         std::vector<std::string> possible_keys = get_current_possible_keys();
-        std::sort(possible_keys.begin(), possible_keys.end());
+        
 
         const RequiredConstraint* requiredConstraint = findConstraint<RequiredConstraint>(schema_object);
         RequiredConstraint::RequiredProperties required_keys = (requiredConstraint != nullptr) ? requiredConstraint->m_requiredProperties : RequiredConstraint::RequiredProperties();
@@ -406,7 +408,7 @@ public:
         return std::string(possible_characters.begin(), possible_characters.end());
     }
 
-    bool can_end() const { return current_stage == ObjectParsingStage::END_OBJECT; }
+    bool can_end() const override { return current_stage == ObjectParsingStage::END_OBJECT; }
 };
 
 class ListParsingState : public PrimitiveParsingState {
