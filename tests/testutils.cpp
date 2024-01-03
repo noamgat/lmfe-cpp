@@ -1,9 +1,21 @@
 #include "./testutils.hpp"
 #include <llama.h>
+#include "./llamacpp_adapter.hpp"
 
 const char* MODEL_PATH = "phi2.gguf";
 
 llama_model *model = nullptr;
+LlamaCppTokenizerData* tokenizer_data = nullptr;
+
+void initialize_llama_if_needed() {
+    if (model == nullptr) {
+        llama_backend_init(false);
+        llama_model_params model_params = llama_model_default_params();
+        model = llama_load_model_from_file(MODEL_PATH, model_params);
+        tokenizer_data = new LlamaCppTokenizerData(model);
+        tokenizer_data->initialize();
+    }
+}
 
 // Taken from llamacpp/common/common.cpp
 std::vector<llama_token> _llama_tokenize(
@@ -27,13 +39,10 @@ std::vector<llama_token> _llama_tokenize(
 
 void assert_parser_with_string_token_enforcer(const std::string &string, CharacterLevelParserPtr parser, bool expect_success)
 {
-    if (model == nullptr) {
-        llama_backend_init(false);
-        llama_model_params model_params = llama_model_default_params();
-        model = llama_load_model_from_file(MODEL_PATH, model_params);
-    }
+    initialize_llama_if_needed();
 
     std::vector<llama_token> tokens_list = _llama_tokenize(model, string, true);
+    
 }
 
 void assert_parser_with_string_direct(const std::string& string, CharacterLevelParserPtr parser, bool expect_success) {

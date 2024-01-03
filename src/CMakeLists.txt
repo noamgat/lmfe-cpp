@@ -6,7 +6,7 @@ file(GLOB HEADER_LIST CONFIGURE_DEPENDS "${LMFormatEnforcer_SOURCE_DIR}/include/
 # set(HEADER_LIST "${LMFormatEnforcer_SOURCE_DIR}/include/modern/lib.hpp")
 
 # Make an automatic library - will be static or dynamic based on user setting
-add_library(lmfe_library lmfe.cpp jsonschemaparser.cpp ${HEADER_LIST})
+add_library(lmfe_library lmfe.cpp jsonschemaparser.cpp tokenenforcer.cpp tokenizerdata.cpp ${HEADER_LIST})
 
 # We need this directory, and users of our library will need it too
 target_include_directories(lmfe_library PUBLIC ../include)
