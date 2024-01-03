@@ -4,7 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/build/_deps/catch-src/single_include"
+                "${workspaceFolder}/build/_deps/catch-src/single_include",
+                "${workspaceFolder}/build/llamacpp/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

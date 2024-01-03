@@ -3,6 +3,7 @@
 #include <lmfe/lmfe.hpp>
 #include <stdexcept>
 #include <string>
+#include <llama.h>
 
 class CharacterNotAllowedException : public std::exception {
 public:
