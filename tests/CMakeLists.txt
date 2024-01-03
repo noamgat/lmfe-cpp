@@ -21,8 +21,16 @@ ExternalProject_Add(llamacpp
 include_directories(${LLAMACPP_INSTALL_LOCATION}/include)
 link_directories(${LLAMACPP_INSTALL_LOCATION}/lib)
 
+# Download the phi2 model
+if (EXISTS "${CMAKE_BINARY_DIR}/tests/phi2.gguf")
+    message("phi2.gguf Exists")
+else()
+    message("Downloading phi2.gguf")
+    file(DOWNLOAD https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q2_K.gguf ${CMAKE_BINARY_DIR}/tests/phi2.gguf)
+endif()
+
 # Tests need to be added as executables first
-add_executable(testlmfe lmfetests.cpp jsonschemaparsertests.cpp)
+add_executable(testlmfe lmfetests.cpp jsonschemaparsertests.cpp testutils.cpp)
 
 # I'm using C++17 in the test
 target_compile_features(testlmfe PRIVATE cxx_std_17)
