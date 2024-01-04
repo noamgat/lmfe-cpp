@@ -641,6 +641,7 @@ JsonSchemaParser::JsonSchemaParser(const std::string& schema_string, CharacterLe
 }
 
 CharacterLevelParserPtr JsonSchemaParser::add_character(char new_character) {
+    context->active_parser = const_cast<JsonSchemaParser*>(this);
     int receiving_idx = object_stack.size() - 1;
     std::string last_parsed_string = this->last_parsed_string;
     bool found_receiving_idx = false;
@@ -673,6 +674,8 @@ CharacterLevelParserPtr JsonSchemaParser::add_character(char new_character) {
 }
 
 std::string JsonSchemaParser::get_allowed_characters() const {
+    context->active_parser = const_cast<JsonSchemaParser*>(this);
+
     std::vector<std::string> allowed_character_strs;
     for (auto it = object_stack.rbegin(); it != object_stack.rend(); ++it) {
         // Similar to SequenceParser, if the top object can end, we need to know to accept the next character of parser below, etc.

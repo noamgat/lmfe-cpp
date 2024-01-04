@@ -43,6 +43,7 @@ TEST_CASE("test_invalid_key_in_json_string", "[json]")
     )", SAMPLE_SCHEMA, false);
 }
 
+
 TEST_CASE("test_incomplete_json", "[json]")
 {
     // Intentionally missing closing }
