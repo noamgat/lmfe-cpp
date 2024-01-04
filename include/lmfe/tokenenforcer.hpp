@@ -73,6 +73,7 @@ private:
         else
         {
             new_state->current_word_tokens = state->current_word_tokens;
+            new_state->current_word_tokens.push_back(new_token);
             std::string prev_decoded = tokenizer_data->decode(state->current_word_tokens);
             std::string new_decoded = tokenizer_data->decode(new_state->current_word_tokens);
             new_characters = new_decoded.substr(prev_decoded.length());

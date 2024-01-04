@@ -7,6 +7,7 @@ TokenizerPrefixTree::TokenizerPrefixTree(std::vector<std::tuple<int, std::string
         std::string decoded;
         bool is_new_word;
         std::tie(token_idx, decoded, is_new_word) = token;
+        tokens_to_strs[token_idx] = decoded;
         _add_token_to_tree(decoded, token_idx, root);
         if (is_new_word) {
             new_word_tokens.insert(token_idx);
